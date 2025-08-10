@@ -1,12 +1,9 @@
-fastapi==0.100.0
-uvicorn[standard]==0.23.1
-python-multipart==0.0.6          # for file upload handling if needed
-pydantic==1.10.11               # FastAPI dependency, specify version for stability
-textblob==0.17.1
 nltk==3.8.1
 fastapi==0.100.0
 uvicorn[standard]==0.23.1
 python-multipart==0.0.6
-pydantic==1.10.11
+pydantic==2.1.1
 textblob==0.17.1
 nltk==3.8.1
+vaderSentiment==3.3.2
+requests==2.31.0
