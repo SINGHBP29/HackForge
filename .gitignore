@@ -1,6 +1,6 @@
 # Ignore everything in the BACKEND folder
 /.venv
-BACKEND/*
+Backend/*
 
 # Except mcp_llm.py
-!BACKEND/mcp_llm.py
+!Backend/mcp_llm.py
