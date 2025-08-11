@@ -1,4 +1,4 @@
-# Ignore everything in the BACKEND folder
+# Ignore everything in Backend
 /.venv
 Backend/*
 
