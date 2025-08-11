@@ -11,6 +11,9 @@ from microservices.memorySummaryService import summarizeChat
 from microservices.offlineCacheService import saveChat, getChatHistory
 from services.moodDetection import detectMoodOffline
 
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
+
 init(autoreset=True)
 nlp = spacy.load("en_core_web_sm")
 
@@ -20,27 +23,14 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 # Session data and constants
 user_sessions = {}
 MAX_HISTORY = 5
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
-
 router = APIRouter()
-
-@router.post("/respond")
-async def respond(request: Request):
-    try:
-        data = await request.json()
-        return JSONResponse(content={
-            "status": "success",
-            "echo": data,
-            "message": "MCP server received the request!"
-        })
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-# You can keep your respond() function here or import it
-# (Just rename or separate your business logic from FastAPI endpoints)
-
+@router.post("/")  # Root of the /respond prefix
+async def handle_respond(request: Request):
+    data = await request.json()
+    return {
+        "message": "Respond endpoint working",
+        "received": data
+    }
 
 color_map = {
     "crisis": lambda text: Fore.RED + text + Style.RESET_ALL,
@@ -77,7 +67,7 @@ def extract_keywords(text: str) -> list[str]:
     try:
         doc = nlp(text)
         nouns = [token.text.lower().strip() for token in doc if token.pos_ == "NOUN" and token.text.strip()]
-        keywords = list(dict.fromkeys(nouns))  # unique nouns preserving order
+        keywords = list(dict.fromkeys(nouns))
         return keywords[:3]
     except Exception:
         return []
@@ -109,7 +99,7 @@ def save_chat_data(chat_entry: dict[str, Any]):
     except Exception as e:
         print(f"Failed to save chat data: {e}")
 
-async def respond(
+async def process_response(
     user_id: str = "unknown",
     message_text: str = "",
     media: Optional[dict] = None,
@@ -118,7 +108,7 @@ async def respond(
     if not message_text and not media:
         raise ValueError("message_text or media is required")
 
-    # Detect mood and score
+    # Detect mood
     mood_data = detectMoodOffline(message_text)
     mood = mood_data.get("mood", "neutral")
     score = mood_data.get("score", 0.0)
@@ -126,11 +116,11 @@ async def respond(
     # Extract keywords
     keywords = extract_keywords(message_text)
 
-    # Load user session info
+    # Load session
     session = user_sessions.get(user_id, {})
     last_question = session.get("last_question")
 
-    # Log chat entry to offline cache
+    # Save chat
     chat_entry = {
         "user_id": user_id,
         "message_text": message_text,
@@ -145,7 +135,7 @@ async def respond(
     history = getChatHistory(user_id)[-MAX_HISTORY:]
     reply_text = getAdaptiveReply(mood, score)
 
-    # Prepare follow-up questions
+    # Prepare follow-up
     possible_follow_ups = follow_ups.get(mood, [])
     follow_up_question = None
     if not last_question and possible_follow_ups:
@@ -155,16 +145,15 @@ async def respond(
         if idx < len(possible_follow_ups) - 1:
             follow_up_question = possible_follow_ups[idx + 1]
 
-    # Compare with last mood mention
+    # Compare last mood mention
     last_mood_mention = get_last_mood_mention(user_id)
     if last_mood_mention and last_mood_mention.get("mood") != mood:
         reply_text += f" By the way, last time you mentioned feeling {last_mood_mention.get('mood')}. How are things now?"
 
-    # Append follow-up question
     if follow_up_question:
         reply_text += " " + follow_up_question
 
-    # Handle media types
+    # Handle media
     if media and "mimetype" in media:
         media_type = media["mimetype"].split("/")[0]
         if media_type == "image":
@@ -174,24 +163,25 @@ async def respond(
         else:
             reply_text += " Thanks for sharing the media!"
 
-    # Handle crisis mood specifically
+    # Crisis mood handling
     if mood == "crisis":
         reply_text = reply_templates["crisis"][0]
         follow_up_question = None
 
-    # Summarize chat history if long enough
+    # Summary if enough history
     if len(history) >= MAX_HISTORY:
         memory_summary = summarizeChat(history)
         reply_text += f"\n\nQuick summary: {memory_summary}"
 
-    # Update session with current interaction
+    # Update session
     update_session(user_id, mood, keywords, message_text, follow_up_question)
 
-    # Log to console with colors
+    # Console log with colors
     color_fn = color_map.get(mood, color_map["neutral"])
     print(color_fn(f"[{datetime.now(timezone.utc).isoformat()}] ({mood.upper()}) {user_id}: {message_text}") +
           (f" [Media: {media.get('originalName', 'unknown')}]" if media else ""))
-    # Save chat log locally
+
+    # Save chat locally
     save_chat_data({
         "timestamp": datetime.utcnow().isoformat(),
         "user_id": user_id,
@@ -202,7 +192,6 @@ async def respond(
         "reply_text": reply_text,
     })
 
-    # Return structured response
     return {
         "user_id": user_id,
         "mood": mood,
@@ -212,3 +201,15 @@ async def respond(
         "crisis": mood == "crisis",
         "media": media,
     }
+
+@router.api_route("/respond",methods=['GET', 'POST'])
+async def respond(request: Request):
+    try:
+        data = await request.json()
+        user_id = data.get("user_id", "unknown")
+        message_text = data.get("message_text", "")
+        media = data.get("media")
+        result = await process_response(user_id=user_id, message_text=message_text, media=media)
+        return JSONResponse(content=result)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})

@@ -1,24 +1,6 @@
-/Backend/routes/respond.js
-/Backend/services/detection.js
-/Backend/services/embedText.js
-/Backend/services/trainMoodModels.js
-/Backend/microservices/empathyService.js
-/Backend/microservices/memorySummaryService.js
-/Backend/microservices/offlineCacheService.js
-/Backend/node_modules
-/Backend/routes/mcp.js
-/Backend/routes/respond.js
-/Backend/services/moodDetection.js
-/Backend/routes/respond1.js
-/Backend/services/sessionManager.js
-/Backend/server.js
-/Backend/test_repond.py
+# Ignore everything in the BACKEND folder
 /.venv
-/Backend/package-lock.json
-/Backend/package.json
-/Backend/temp
-/Backend/routes/__pycache__
-/Backend/__pycache__
-/Backend/cache
-/Backend/microservices/__pycache__
-/Backend/trainMoodModels.js
+BACKEND/*
+
+# Except mcp_llm.py
+!BACKEND/mcp_llm.py
