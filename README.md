@@ -1,6 +1,4 @@
-# 🏆 Mental Health MCP Server 
-## 🏆 WINNING FEATURES
-
+Mental Health MCP Server 
 ### 🚨 **CRISIS PREVENTION THAT SAVES LIVES**
 ```python
 # REAL-TIME CRISIS DETECTION
